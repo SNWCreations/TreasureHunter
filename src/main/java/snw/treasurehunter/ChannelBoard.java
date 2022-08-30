@@ -13,16 +13,48 @@ import snw.jkook.message.component.card.module.HeaderModule;
 import snw.jkook.message.component.card.module.SectionModule;
 import snw.jkook.util.Validate;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.*;
 
 public class ChannelBoard {
     private final List<SessionRecord> records = new ArrayList<>();
+    private final UUID uuid;
     private String boardMessageId;
 
+    public ChannelBoard(UUID uuid) {
+        this.uuid = uuid;
+    }
+
     public void addRecord(Session session) {
+        addRecord0(session);
+        update();
+    }
+
+    public void load(File file) {
+        List<String> lines;
+        try {
+            lines = Files.readAllLines(file.toPath());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        for (String line : lines) {
+            addRecord(line);
+        }
+    }
+
+    public void addRecord(String rawData) {
+        if (rawData.isEmpty()) {
+            return;
+        }
+        String[] split = rawData.split(",");
+        SessionRecord record = new SessionRecord(split[0], split[1], Integer.parseInt(split[2]));
+        records.add(record);
+    }
+
+    public void addRecord0(Session session) {
         for (SessionRecord sessionRecord : records) {
             if (Objects.equals(sessionRecord.getUserId(), session.getUser().getId())) {
                 if (session.getSteps() > sessionRecord.getSteps()) {
@@ -33,7 +65,6 @@ public class ChannelBoard {
         }
         SessionRecord record = new SessionRecord(session.getUser().getId(), session.getUser().getName(), session.getSteps());
         records.add(record);
-        update();
     }
 
     public void setBoardMessageId(String boardMessageId) {
@@ -44,6 +75,12 @@ public class ChannelBoard {
 
     public void update() {
         JKook.getCore().getUnsafe().getTextChannelMessage(boardMessageId).setComponent(drawCard());
+        File file = new File(Main.getInstance().getSessionFolder(), uuid + ".txt");
+        try {
+            Files.write(file.toPath(), export().getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public boolean hasPlayed(User user) {

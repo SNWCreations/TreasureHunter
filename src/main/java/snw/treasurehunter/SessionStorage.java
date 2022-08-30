@@ -1,10 +1,13 @@
 package snw.treasurehunter;
 
 import snw.jkook.JKook;
+import snw.jkook.config.file.YamlConfiguration;
 import snw.jkook.entity.User;
 import snw.jkook.entity.channel.TextChannel;
+import snw.jkook.message.component.FileComponent;
 import snw.jkook.util.Validate;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -54,4 +57,29 @@ public class SessionStorage {
         return sessionMap.containsKey(channel.getId());
     }
 
+    public void loadSessionFile(File file) {
+        if (!file.exists() || !file.isFile()) return;
+        YamlConfiguration data = YamlConfiguration.loadConfiguration(file);
+        String channelId = data.getString("channelId", "");
+        if (channelId.isEmpty()) {
+            Main.getInstance().getLogger().warn("Invalid session file " + file + " , no channel id found.");
+            return;
+        }
+        if (System.currentTimeMillis() > data.getLong("endTime")) {
+            Main.getInstance().getLogger().warn("The session file " + file + " is expired. Attempting to send the final data");
+            File dataFile = new File(file.getParentFile(), file.getName().replace(".yml", "") + ".txt");
+            if (!dataFile.exists()) {
+                Main.getInstance().getLogger().warn("The session file does not bound to a data file! Data will LOST!");
+            } else {
+                String url = JKook.getHttpAPI().uploadFile(dataFile);
+                JKook.getHttpAPI().getUser(data.getString("starterId", "")).sendPrivateMessage(
+                        new FileComponent(url, channelId + " - " + JKook.getHttpAPI().getChannel(channelId).getName() + ".txt", -1, FileComponent.Type.FILE)
+                );
+                dataFile.delete();
+            }
+            file.delete();
+            return;
+        }
+        sessionMap.put(channelId, new ChannelSession(this, data, file));
+    }
 }

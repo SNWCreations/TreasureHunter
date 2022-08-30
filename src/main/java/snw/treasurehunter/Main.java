@@ -11,6 +11,7 @@ import snw.jkook.message.component.TextComponent;
 import snw.jkook.message.component.card.MultipleCardComponent;
 import snw.jkook.plugin.BasePlugin;
 
+import java.io.File;
 import java.util.*;
 
 import static snw.treasurehunter.Session.drawCard;
@@ -20,6 +21,7 @@ public class Main extends BasePlugin {
     private static Main INSTANCE;
     private final ButtonListenerBridge bridge = new ButtonListenerBridge();
     private final Map<String, Set<Integer>> serverAdminRoles = new HashMap<>();
+    private File sessionFolder;
     private SessionStorage storage;
 
     static {
@@ -47,6 +49,18 @@ public class Main extends BasePlugin {
     public void onEnable() {
         INSTANCE = this;
         storage = new SessionStorage();
+        sessionFolder = new File(getDataFolder(), "sessions");
+        if (!sessionFolder.isDirectory()) {
+            //noinspection ResultOfMethodCallIgnored
+            sessionFolder.mkdirs();
+        }
+        File[] files = sessionFolder.listFiles(pathname -> pathname.getName().endsWith(".yml"));
+        if (files == null) {
+            files = new File[]{};
+        }
+        for (File file : files) {
+            storage.loadSessionFile(file);
+        }
 
         new JKookCommand("th")
                 .setDescription("宝藏猎人 根命令。")
@@ -152,5 +166,9 @@ public class Main extends BasePlugin {
     public boolean hasPermission(User user, Guild guild) {
         Collection<Integer> roles = user.getRoles(guild);
         return serverAdminRoles.computeIfAbsent(guild.getId(), (k) -> new HashSet<>()).stream().anyMatch(roles::contains);
+    }
+
+    public File getSessionFolder() {
+        return sessionFolder;
     }
 }
