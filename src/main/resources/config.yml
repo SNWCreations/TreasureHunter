@@ -1,0 +1,12 @@
+# Gold Miner (actually it is Number Bomb) in KOOK
+# by SNWCreations
+
+# The minimum number of the number range.
+min: 0
+
+# The maximum number of the number range.
+max: 100
+
+# -1 means no limit
+# die-time: -1
+# No, we no longer use it
