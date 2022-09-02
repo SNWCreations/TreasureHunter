@@ -20,6 +20,7 @@ import java.util.Random;
 public class Session {
     private final ChannelSession parent;
     private final User user;
+    private final Object lock = new Object();
     private int min;
     private int max;
     private int target;
@@ -49,33 +50,35 @@ public class Session {
     }
 
     public void execute(int answer) {
-        if (answer <= min || answer >= max) {
-            user.sendPrivateMessage(new TextComponent("无效的参数 - 超出有效范围。"));
-            return;
-        }
-        if (answer != target) {
-            steps++; // add step
-            if (answer > target) {
-                max = answer;
-            } else {
-                min = answer;
+        synchronized (lock) {
+            if (answer <= min || answer >= max) {
+                user.sendPrivateMessage(new TextComponent("无效的参数 - 超出有效范围。"));
+                return;
             }
-            if (Math.abs(this.max - this.min) == 2) {
-                user.sendPrivateMessage(
-                        drawCard("你失败了！宝藏数字: " + target)
-                );
-                Main.getInstance().getSessionStorage().removeSessionByUser(user);
+            if (answer != target) {
+                steps++; // add step
+                if (answer > target) {
+                    max = answer;
+                } else {
+                    min = answer;
+                }
+                if (Math.abs(this.max - this.min) == 2) {
+                    user.sendPrivateMessage(
+                            drawCard("你失败了！宝藏数字: " + target)
+                    );
+                    Main.getInstance().getSessionStorage().removeSessionByUser(user);
+                } else {
+                    user.sendPrivateMessage(drawCard());
+                }
             } else {
-                user.sendPrivateMessage(drawCard());
-            }
-        } else {
-            boolean b = parent.completeSession(this);
-            if (!b) {
-                user.sendPrivateMessage(new TextComponent("提交记录时出现错误: 活动已过期。"));
-            } else {
-                user.sendPrivateMessage(
-                        drawCard("你成功了！")
-                );
+                boolean b = parent.completeSession(this);
+                if (!b) {
+                    user.sendPrivateMessage(new TextComponent("提交记录时出现错误: 活动已过期。"));
+                } else {
+                    user.sendPrivateMessage(
+                            drawCard("你成功了！你用了 " + steps + " 步。")
+                    );
+                }
             }
         }
     }

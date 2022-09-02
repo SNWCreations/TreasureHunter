@@ -26,7 +26,7 @@ import java.util.*;
 import java.util.function.Consumer;
 
 public class ChannelSession {
-    private static final SimpleDateFormat SDF = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss");
+    private static final SimpleDateFormat SDF;
 
     private final SessionStorage storage;
     private final String channelId;
@@ -44,6 +44,11 @@ public class ChannelSession {
     private Task naturalDieTask;
     private File sessionFile;
     private final UUID uuid;
+
+    static {
+        SDF = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss");
+        SDF.setTimeZone(TimeZone.getTimeZone("GMT+8:00"));
+    }
 
     public ChannelSession(SessionStorage storage, String channelId, long sessionAliveLength, User sender) {
         this.storage = storage;
@@ -263,6 +268,7 @@ public class ChannelSession {
                 deleteButtonId,
                 wrap(user -> {
                     if (Main.getInstance().hasPermission(user, JKook.getHttpAPI().getChannel(channelId).getGuild())) {
+
                         markDie();
                         starterMsg.delete();
                         boardMsg.delete();

@@ -5,6 +5,7 @@ import snw.jkook.config.file.YamlConfiguration;
 import snw.jkook.entity.User;
 import snw.jkook.entity.channel.TextChannel;
 import snw.jkook.message.component.FileComponent;
+import snw.jkook.message.component.MarkdownComponent;
 import snw.jkook.util.Validate;
 
 import java.io.File;
@@ -22,15 +23,15 @@ public class SessionStorage {
         sessionMap.put(channel.getId(), channelSession);
     }
 
-    // IllegalArgumentException -> already a session bound to the provided user
-    // IllegalStateException -> no activity on the channel
-    public void createSession(User user, String channelId) throws IllegalArgumentException, IllegalStateException {
+    public void createSession(User user, String channelId) {
         if (getSessionByUser(user) != null) {
-            throw new IllegalArgumentException();
+            user.sendPrivateMessage(new MarkdownComponent("你正在参与活动！如果你确定你没有参与，请向我发送 `/th exit` 。"));
+            return;
         }
         ChannelSession channelSession = getSession(((TextChannel) JKook.getHttpAPI().getChannel(channelId)));
         if (channelSession == null) {
-            throw new IllegalStateException();
+            user.sendPrivateMessage(new MarkdownComponent("请求的频道没有在运行的活动。"));
+            return;
         }
         channelSession.addPlayer(user);
         Session session = new Session(user, channelSession);

@@ -14,8 +14,8 @@ import snw.jkook.message.component.card.module.SectionModule;
 import snw.jkook.util.Validate;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
 
@@ -28,9 +28,35 @@ public class ChannelBoard {
         this.uuid = uuid;
     }
 
-    public void addRecord(Session session) {
-        addRecord0(session);
+    public synchronized void addRecord(Session session) {
+        Iterator<SessionRecord> iterator = records.iterator();
+        while (iterator.hasNext()) {
+            SessionRecord sessionRecord = iterator.next();
+            if (Objects.equals(sessionRecord.getUserId(), session.getUser().getId())) {
+                if (session.getSteps() > sessionRecord.getSteps()) {
+                    // if this record is not better than the record in this board, it is not necessary to create record for this session
+                    return;
+                } else if (session.getSteps() < sessionRecord.getSteps()) {
+                    iterator.remove(); // remove the old record
+                } else {
+                    return; // it is not necessary to write the same result!
+                }
+            }
+        }
+        SessionRecord record = new SessionRecord(session.getUser().getId(), session.getUser().getName(), session.getSteps());
+        records.add(record);
         update();
+        File file = new File(Main.getInstance().getSessionFolder(), uuid + ".txt");
+        try (FileWriter fileWriter = new FileWriter(file, true)) {
+            fileWriter.write(
+                    String.format(
+                            "%s§%s§%s", session.getUser().getName(), session.getUser().getId(), session.getSteps()
+                    )
+            );
+            fileWriter.write("\n");
+        } catch (IOException e) {
+            Main.getInstance().getLogger().error("Unable to write record. data: {}", String.format("%s,%s,%s", session.getUser().getName(), session.getUser().getId(), session.getSteps()), e);
+        }
     }
 
     public void load(File file) {
@@ -43,27 +69,29 @@ public class ChannelBoard {
         for (String line : lines) {
             addRecord(line);
         }
+        update();
     }
 
     public void addRecord(String rawData) {
         if (rawData.isEmpty()) {
             return;
         }
-        String[] split = rawData.split(",");
-        SessionRecord record = new SessionRecord(split[0], split[1], Integer.parseInt(split[2]));
-        records.add(record);
-    }
-
-    public void addRecord0(Session session) {
-        for (SessionRecord sessionRecord : records) {
-            if (Objects.equals(sessionRecord.getUserId(), session.getUser().getId())) {
-                if (session.getSteps() > sessionRecord.getSteps()) {
-                    // if this record is not better than the record in this board, it is not necessary to create record for this session
-                    return;
-                }
-            }
-        }
-        SessionRecord record = new SessionRecord(session.getUser().getId(), session.getUser().getName(), session.getSteps());
+        String[] split = rawData.split("§");
+        SessionRecord record = new SessionRecord(split[1], split[0], Integer.parseInt(split[2]));
+//        Iterator<SessionRecord> iterator = records.iterator();
+//        while (iterator.hasNext()) {
+//            SessionRecord sessionRecord = iterator.next();
+//            if (Objects.equals(sessionRecord.getUserId(), record.getUserId())) {
+//                if (record.getSteps() > sessionRecord.getSteps()) {
+//                    // if this record is not better than the record in this board, it is not necessary to create record for this session
+//                    return;
+//                } else if (record.getSteps() < sessionRecord.getSteps()) {
+//                    iterator.remove(); // remove the old record
+//                } else {
+//                    return; // it is not necessary to write the same result!
+//                }
+//            }
+//        }
         records.add(record);
     }
 
@@ -75,12 +103,6 @@ public class ChannelBoard {
 
     public void update() {
         JKook.getCore().getUnsafe().getTextChannelMessage(boardMessageId).setComponent(drawCard());
-        File file = new File(Main.getInstance().getSessionFolder(), uuid + ".txt");
-        try {
-            Files.write(file.toPath(), export().getBytes(StandardCharsets.UTF_8));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     public boolean hasPlayed(User user) {
